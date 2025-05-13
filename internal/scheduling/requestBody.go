@@ -15,3 +15,7 @@ type ScheduleFlightRequest struct {
 	Prices      map[enums.SeatType]int `json:"prices"`
 	CreatedBy   string                 `json:"created_by"`
 }
+
+type CancelFlightRequest struct {
+	FlightCode string `json:"flight_code"`
+}

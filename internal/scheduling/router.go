@@ -4,4 +4,5 @@ import "net/http"
 
 func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/scheduleFlight", ScheduleFlightHandler)
+	mux.HandleFunc("/cancelFlight", CancelFlightHandler)
 }

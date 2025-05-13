@@ -2,6 +2,7 @@ package scheduling
 
 import (
 	"errors"
+	"flight-booking-system/internal/booking"
 	"flight-booking-system/internal/db"
 	"fmt"
 	"github.com/google/uuid"
@@ -54,6 +55,59 @@ func ScheduleFlightController(req ScheduleFlightRequest) error {
 		err := InsertPrice(tx, priceID, flightID, seatType, price)
 		if err != nil {
 			return fmt.Errorf("failed to insert price: %w", err)
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CancelFlightController(req CancelFlightRequest) error {
+	conn := db.GetDB()
+	tx, err := conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	flightCode := req.FlightCode
+
+	flightID, err := booking.GetFlightID(tx, flightCode)
+	if err != nil {
+		return err
+	}
+
+	err = UpdateFlightStatus(tx, flightID)
+	if err != nil {
+		return err
+	}
+
+	bookedSeats := GetBookedSeats(tx, flightID)
+
+	err = UpdateSeats(tx, flightID)
+	if err != nil {
+		return err
+	}
+
+	err = UpdatePricing(tx, flightID)
+	if err != nil {
+		return err
+	}
+
+	err = UpdateBookings(tx, flightID)
+	if err != nil {
+		return err
+	}
+
+	if len(bookedSeats) > 0 {
+		for _, seat := range bookedSeats {
+			err = UpdateBookingSeatMapping(tx, seat)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

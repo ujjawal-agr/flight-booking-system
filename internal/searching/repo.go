@@ -12,7 +12,7 @@ func FetchFlights(req GetFlightsRequest) ([]FlightResponse, error) {
 
 	// Query flights based on source, destination, and date
 	rows, err := conn.Query(`
-		SELECT flight_code, company
+		SELECT flight_code, company, flight_status
 		FROM flights
 		WHERE source = $1 AND destination = $2 AND date = $3`,
 		req.Source, req.Destination, req.Date)
@@ -25,8 +25,8 @@ func FetchFlights(req GetFlightsRequest) ([]FlightResponse, error) {
 
 	// Iterate through each flight
 	for rows.Next() {
-		var flightCode, company string
-		err := rows.Scan(&flightCode, &company)
+		var flightCode, company, flightStatus string
+		err := rows.Scan(&flightCode, &company, &flightStatus)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan flight row: %v", err)
 		}
@@ -35,7 +35,7 @@ func FetchFlights(req GetFlightsRequest) ([]FlightResponse, error) {
 		flight := FlightResponse{
 			FlightCode:   flightCode,
 			Company:      company,
-			FlightStatus: "available", // Default status
+			FlightStatus: flightStatus,
 		}
 		flights = append(flights, flight)
 	}

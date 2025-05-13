@@ -3,6 +3,7 @@ package scheduling
 import (
 	"database/sql"
 	"flight-booking-system/internal/enums"
+	"fmt"
 	"github.com/google/uuid"
 	"time"
 )
@@ -38,5 +39,54 @@ func InsertPrice(tx *sql.Tx, priceID uuid.UUID, flightID uuid.UUID, seatType enu
 	`,
 		priceID, flightID, seatType, price, time.Now(),
 	)
+	return err
+}
+
+func UpdateFlightStatus(tx *sql.Tx, flightID uuid.UUID) error {
+	_, err := tx.Exec(`UPDATE flights SET flight_status = 'cancelled' WHERE flight_id = $1`, flightID)
+	if err != nil {
+		return fmt.Errorf("failed to update flight status: %v", err)
+	}
+	return err
+}
+
+func GetBookedSeats(tx *sql.Tx, flightID uuid.UUID) []uuid.UUID {
+	var bookedSeats []uuid.UUID
+	_ = tx.QueryRow(`
+		SELECT seat_id FROM seats
+		WHERE flight_id = $1 AND seat_status = 'booked'`,
+		flightID).Scan(&bookedSeats)
+	return bookedSeats
+}
+
+func UpdateSeats(tx *sql.Tx, flightID uuid.UUID) error {
+	_, err := tx.Exec(`DELETE FROM seats WHERE flight_id = $1`, flightID)
+	if err != nil {
+		return fmt.Errorf("failed to delete records from seats: %v", err)
+	}
+	return err
+}
+
+func UpdatePricing(tx *sql.Tx, flightID uuid.UUID) error {
+	_, err := tx.Exec(`DELETE FROM pricing WHERE flight_id = $1`, flightID)
+	if err != nil {
+		return fmt.Errorf("failed to delete records from pricing: %v", err)
+	}
+	return err
+}
+
+func UpdateBookings(tx *sql.Tx, flightID uuid.UUID) error {
+	_, err := tx.Exec(`DELETE FROM bookings WHERE flight_id = $1`, flightID)
+	if err != nil {
+		return fmt.Errorf("failed to delete records from bookings: %v", err)
+	}
+	return err
+}
+
+func UpdateBookingSeatMapping(tx *sql.Tx, seatID uuid.UUID) error {
+	_, err := tx.Exec(`DELETE FROM booking_seat_mapping WHERE seat_id = $1`, seatID)
+	if err != nil {
+		return fmt.Errorf("failed to delete seat booking from mapping: %v", err)
+	}
 	return err
 }

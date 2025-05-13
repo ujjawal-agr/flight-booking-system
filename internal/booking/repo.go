@@ -3,7 +3,7 @@ package booking
 import (
 	"database/sql"
 	"errors"
-	"flight-booking-system/internal/db"
+	//"flight-booking-system/internal/db"
 	"flight-booking-system/internal/enums"
 	"fmt"
 	"github.com/google/uuid"
@@ -15,12 +15,12 @@ type Booking struct {
 	Amount     int
 }
 
-func InsertBooking(tx *sql.Tx, flightID uuid.UUID, customerName, customerContact string) (uuid.UUID, error) {
+func InsertBooking(tx *sql.Tx, flightID uuid.UUID, customerName, customerContact string, noOfSeats int) (uuid.UUID, error) {
 	var bookingID uuid.UUID
 	err := tx.QueryRow(`
-		INSERT INTO bookings (flight_id, customer_name, customer_contact)
-		VALUES ($1, $2, $3) RETURNING booking_id`,
-		flightID, customerName, customerContact).Scan(&bookingID)
+		INSERT INTO bookings (flight_id, customer_name, customer_contact, no_of_seats)
+		VALUES ($1, $2, $3, $4) RETURNING booking_id`,
+		flightID, customerName, customerContact, noOfSeats).Scan(&bookingID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("failed to insert booking: %v", err)
 	}
@@ -34,6 +34,24 @@ func GetFlightID(tx *sql.Tx, flightCode string) (uuid.UUID, error) {
 		return flightID, fmt.Errorf("failed to fetch flightID: %v", err)
 	}
 	return flightID, nil
+}
+
+func GetSeatID(tx *sql.Tx, seatType enums.SeatType, seatNo int, flightID uuid.UUID) (uuid.UUID, error) {
+	var seatID uuid.UUID
+	err := tx.QueryRow("SELECT seat_id FROM seats WHERE seat_no = $1 AND seat_type = $2 AND flight_id = $3", seatNo, seatType, flightID).Scan(&seatID)
+	if err != nil {
+		return seatID, fmt.Errorf("failed to fetch seatID: %v", err)
+	}
+	return seatID, nil
+}
+
+func GetBookingID(tx *sql.Tx, seatID uuid.UUID) (uuid.UUID, error) {
+	var bookingID uuid.UUID
+	err := tx.QueryRow("SELECT booking_id FROM booking_seat_mapping WHERE seat_id = $1", seatID).Scan(&bookingID)
+	if err != nil {
+		return bookingID, fmt.Errorf("failed to fetch bookingID: %v", err)
+	}
+	return bookingID, nil
 }
 
 func GetAvailableSeat(tx *sql.Tx, flightID uuid.UUID, seatType enums.SeatType) (uuid.UUID, int, error) {
@@ -81,21 +99,38 @@ func GetSeatPrice(tx *sql.Tx, flightID uuid.UUID, seatType enums.SeatType) (int,
 	return price, nil
 }
 
-func CancelBooking(bookingID uuid.UUID) error {
-	conn := db.GetDB()
-
-	// fetch flight_id for incrementing seats
-	var flightID uuid.UUID
-	err := conn.QueryRow("SELECT flight_id FROM bookings WHERE booking_id = $1", bookingID).Scan(&flightID)
+func UpdateBookingSeatMapping(tx *sql.Tx, seatID uuid.UUID) error {
+	_, err := tx.Exec(`DELETE FROM booking_seat_mapping WHERE seat_id = $1`, seatID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete record from booking-seat-mapping: %v", err)
 	}
+	return err
+}
 
-	_, err = conn.Exec("DELETE FROM bookings WHERE booking_id = $1", bookingID)
+func UpdateBookings(tx *sql.Tx, bookingID uuid.UUID) error {
+	_, err := tx.Exec(`UPDATE bookings SET no_of_seats = no_of_seats-1 WHERE booking_id = $1`, bookingID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update record from bookings: %v", err)
 	}
+	_, err = tx.Exec(`DELETE FROM bookings WHERE no_of_seats = 0`)
+	if err != nil {
+		return fmt.Errorf("failed to delete record from bookings: %v", err)
+	}
+	return err
+}
 
-	// You might want to update seat status back to 'available' here if needed.
-	return nil
+func UpdateSeats(tx *sql.Tx, seatID uuid.UUID) error {
+	_, err := tx.Exec(`UPDATE seats SET seat_status = 'available' WHERE seat_id = $1`, seatID)
+	if err != nil {
+		return fmt.Errorf("failed to update seat status: %v", err)
+	}
+	return err
+}
+
+func UpdateFlights(tx *sql.Tx, flightID uuid.UUID) error {
+	_, err := tx.Exec(`UPDATE flights SET flight_status = 'available' WHERE flight_id = $1`, flightID)
+	if err != nil {
+		return fmt.Errorf("failed to update flight status: %v", err)
+	}
+	return err
 }

@@ -2,7 +2,6 @@ package booking
 
 import (
 	"encoding/json"
-	"github.com/google/uuid"
 	"net/http"
 )
 
@@ -39,10 +38,6 @@ func BookFlightHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-type CancelRequest struct {
-	BookingID uuid.UUID `json:"booking_id"`
-}
-
 func CancelBookingHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -56,7 +51,7 @@ func CancelBookingHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = CancelBookingController(req.BookingID)
+	err = CancelBookingController(req.FlightCode, req.Seats)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

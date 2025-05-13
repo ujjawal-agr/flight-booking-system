@@ -30,10 +30,13 @@ func main() {
 		os.Getenv("DB_NAME"),
 	)
 
+	// Create a DB instance
 	db.InitDB(connStr)
 
+	// Fetch the DB instance
 	DB := db.GetDB()
 
+	// Close the DC instance after the main function ends
 	defer func(DB *sql.DB) {
 		err := DB.Close()
 		if err != nil {
@@ -41,6 +44,7 @@ func main() {
 		}
 	}(DB)
 
+	// Reset DB
 	err = db.ResetDatabase(DB, "internal/db/schema.sql")
 	if err != nil {
 		log.Fatalf("Database reset failed: %v", err)
@@ -50,7 +54,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// Register booking-related routes
+	// Register all routes
 	booking.RegisterRoutes(mux)
 	scheduling.RegisterRoutes(mux)
 	searching.RegisterRoutes(mux)

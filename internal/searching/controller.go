@@ -21,38 +21,44 @@ func GetFlights(req GetFlightsRequest) ([]FlightResponse, error) {
 		var seatsAvailable = make(map[string]int)
 		var seatsPrice = make(map[string]int)
 		flight.Seats = make(map[enums.SeatType]SeatTypeDetails)
-		flightID, err := GetFlightID(flight.FlightCode)
-		for _, seatType := range seatTypes {
-
-			if err != nil {
-				return nil, err
+		if flight.FlightStatus == "cancelled" {
+			for _, seatType := range seatTypes {
+				seatsAvailable[seatType] = 0
+				seatsPrice[seatType] = 0
+				flight.Seats[enums.SeatType(seatType)] = SeatTypeDetails{Price: seatsPrice[seatType], AvailableSeats: seatsAvailable[seatType]}
 			}
-			seatsAvailable[seatType], err = CountAvailableSeats(flightID, seatType)
-			if err != nil {
-				return nil, fmt.Errorf("failed to count available seats: %v", err)
-			}
-			seatsPrice[seatType], err = GetSeatPrice(flightID, seatType)
-			if err != nil {
-				return nil, fmt.Errorf("failed to fetch seat prices: %v", err)
-			}
-
-			flight.Seats[enums.SeatType(seatType)] = SeatTypeDetails{Price: seatsPrice[seatType], AvailableSeats: seatsAvailable[seatType]}
-		}
-
-		// Determine flight status based on available seats
-		if seatsAvailable[seatTypes[0]] == 0 && seatsAvailable[seatTypes[1]] == 0 && seatsAvailable[seatTypes[2]] == 0 {
-			flight.FlightStatus = "fullyBooked"
-			err := SetFullyBooked(flightID)
-			if err != nil {
-				return nil, err
-			}
-			//else {
-			//	_ = cache.SetFlightAsFullyBooked(flight.FlightCode, flight.Date.Format("2006-01-02"))
-			//}
 		} else {
-			flight.FlightStatus = "available"
-		}
+			flightID, err := GetFlightID(flight.FlightCode)
+			if err != nil {
+				return nil, err
+			}
+			for _, seatType := range seatTypes {
+				seatsAvailable[seatType], err = CountAvailableSeats(flightID, seatType)
+				if err != nil {
+					return nil, fmt.Errorf("failed to count available seats: %v", err)
+				}
+				seatsPrice[seatType], err = GetSeatPrice(flightID, seatType)
+				if err != nil {
+					return nil, fmt.Errorf("failed to fetch seat prices: %v", err)
+				}
 
+				flight.Seats[enums.SeatType(seatType)] = SeatTypeDetails{Price: seatsPrice[seatType], AvailableSeats: seatsAvailable[seatType]}
+			}
+
+			// Determine flight status based on available seats
+			if seatsAvailable[seatTypes[0]] == 0 && seatsAvailable[seatTypes[1]] == 0 && seatsAvailable[seatTypes[2]] == 0 {
+				flight.FlightStatus = "fullyBooked"
+				err := SetFullyBooked(flightID)
+				if err != nil {
+					return nil, err
+				}
+				//else {
+				//	_ = cache.SetFlightAsFullyBooked(flight.FlightCode, flight.Date.Format("2006-01-02"))
+				//}
+			} else {
+				flight.FlightStatus = "available"
+			}
+		}
 		// Update the flight in the list
 		flights[i] = flight
 	}

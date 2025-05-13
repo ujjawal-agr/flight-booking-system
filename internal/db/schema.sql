@@ -53,6 +53,7 @@ CREATE TABLE bookings (
                           flight_id UUID REFERENCES flights(flight_id) ON DELETE CASCADE,
                           customer_name VARCHAR(100) NOT NULL,
                           customer_contact VARCHAR(20),
+                          no_of_seats INT DEFAULT 0,
                           created_on TIMESTAMP DEFAULT NOW(),
                           updated_on TIMESTAMP DEFAULT NOW(),
                           created_by VARCHAR(50),
